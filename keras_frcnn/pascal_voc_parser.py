@@ -1,7 +1,7 @@
 import os
 import cv2
 import xml.etree.ElementTree as ET
-
+import numpy as np
 def get_data(input_path):
 	all_imgs = []
 
@@ -29,13 +29,20 @@ def get_data(input_path):
 			with open(imgsets_path_trainval) as f:
 				for line in f:
 					trainval_files.append(line.strip() + '.jpg')
+		except Exception as e:
+			print(e)
+
+		try:
 			with open(imgsets_path_test) as f:
 				for line in f:
 					test_files.append(line.strip() + '.jpg')
 		except Exception as e:
-			print(e)
+			if data_path[-7:] == 'VOC2012':
+				# this is expected, most pascal voc distibutions dont have the test.txt file
+				pass
+			else:
+				print(e)
 		
-
 		annots = [os.path.join(annot_path, s) for s in os.listdir(annot_path)]
 		idx = 0
 		for annot in annots:
@@ -53,12 +60,13 @@ def get_data(input_path):
 				if len(element_objs) > 0:
 					annotation_data = {'filepath': os.path.join(imgs_path, element_filename), 'width': element_width,
 									   'height': element_height, 'bboxes': []}
+
 					if element_filename in trainval_files:
 						annotation_data['imageset'] = 'trainval'
 					elif element_filename in test_files:
 						annotation_data['imageset'] = 'test'
 					else:
-						annotation_data['imageset'] = 'test'
+						annotation_data['imageset'] = 'trainval'
 
 				for element_obj in element_objs:
 					class_name = element_obj.find('name').text
@@ -75,9 +83,9 @@ def get_data(input_path):
 					y1 = int(round(float(obj_bbox.find('ymin').text)))
 					x2 = int(round(float(obj_bbox.find('xmax').text)))
 					y2 = int(round(float(obj_bbox.find('ymax').text)))
+					difficulty = int(element_obj.find('difficult').text) == 1
 					annotation_data['bboxes'].append(
-						{'class': class_name, 'x1': x1, 'x2': x2, 'y1': y1, 'y2': y2})
-
+						{'class': class_name, 'x1': x1, 'x2': x2, 'y1': y1, 'y2': y2, 'difficult': difficulty})
 				all_imgs.append(annotation_data)
 
 				if visualise:
@@ -91,4 +99,4 @@ def get_data(input_path):
 			except Exception as e:
 				print(e)
 				continue
-	return all_imgs,classes_count,class_mapping
+	return all_imgs, classes_count, class_mapping
